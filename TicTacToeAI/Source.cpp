@@ -1,10 +1,15 @@
 #include <iostream>
+#include <limits>
 using namespace std;
+
+#define POS_INFINITY INT_MAX
+#define NEG_INFINITY INT_MIN
 
 int winCount = 0;
 int lostCount = 0;
 int tieCount = 0;
 int deepestDepth = 0;
+int count = 0;
 bool MovesLeft(char board[3][3])
 {
 	int count = 0;
@@ -103,6 +108,7 @@ int Min(int a, int b)
 }
 int Minimax(char board[3][3], int depth, bool isComputerTurn)
 {
+	::count++;
 	//Check if there is available move
 	int score = EvaluateBoard(board);
 
@@ -133,7 +139,7 @@ int Minimax(char board[3][3], int depth, bool isComputerTurn)
 	int best = 0;
 	if (isComputerTurn)	//Maximizing 
 	{
-		best = -1000;
+		best = NEG_INFINITY;
 		for (int i = 0; i < 3; i++)
 		{
 			for (int j = 0; j < 3; j++)
@@ -142,6 +148,7 @@ int Minimax(char board[3][3], int depth, bool isComputerTurn)
 				if (board[i][j] == '.')
 				{
 					board[i][j] = 'x';
+
 					best = Max(best, Minimax(board, depth + 1, false));
 					board[i][j] = '.';
 				}
@@ -150,7 +157,7 @@ int Minimax(char board[3][3], int depth, bool isComputerTurn)
 	}
 	else			   //Minimizing
 	{
-		best = 1000;
+		best = POS_INFINITY;
 		for (int i = 0; i < 3; i++)
 		{
 			for (int j = 0; j < 3; j++)
@@ -167,6 +174,106 @@ int Minimax(char board[3][3], int depth, bool isComputerTurn)
 	}
 	return best;
 }
+
+int MinimaxAlphaBeta(char board[3][3], int depth, bool isComputerTurn, int alpha, int beta)
+{
+	::count++;
+	//Check if there is available move
+	int score = EvaluateBoard(board);
+
+	//Computer Wins
+	if (score == 10)
+	{
+		winCount++;
+		//deepestDepth = Max(deepestDepth, depth);
+		return score - depth;
+	}
+
+	//Human Wins
+	if (score == -10)
+	{
+		lostCount++;
+		//deepestDepth = Max(deepestDepth, depth);
+		return score + depth;
+	}
+
+	//Check Available Moves
+	if (!MovesLeft(board))
+	{
+		tieCount++;
+		//deepestDepth = Max(deepestDepth, depth);
+		return 0;
+	}
+
+	int best = 0;
+	if (isComputerTurn)	//Maximizing 
+	{
+		best = NEG_INFINITY;
+		bool cut = false;
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				//Check Empty Cells
+				if (board[i][j] == '.')
+				{
+					int eval = 0;
+					board[i][j] = 'x';
+					eval = MinimaxAlphaBeta(board, depth + 1, false, alpha, beta);
+					board[i][j] = '.';
+					best = Max(best, eval);
+					alpha = Max(alpha, eval);
+					if (beta <= alpha)
+					{
+						cut = true;
+					}
+				}
+				if (cut)
+				{
+					break;
+				}
+			}
+			if (cut)
+			{
+				break;
+			}
+		}
+	}
+	else			   //Minimizing
+	{
+		best = POS_INFINITY;
+		bool cut = false;
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				//Check Empty Cells
+				if (board[i][j] == '.')
+				{
+					int eval = 0;
+					board[i][j] = 'o';
+					eval = Min(best, MinimaxAlphaBeta(board, depth + 1, true, alpha, beta));
+					board[i][j] = '.';
+					best = Min(best, eval);
+					beta = Min(beta, eval);
+					if (beta <= alpha)
+					{
+						cut = true;
+					}
+				}
+				if (cut)
+				{
+					break;
+				}
+			}
+			if (cut)
+			{
+				break;
+			}
+		}
+	}
+	return best;
+}
 int main()
 {
 	char board[3][3] = { {'.', '.', '.'},
@@ -178,7 +285,7 @@ int main()
 	int col = 0;
 	while (true)
 	{
-		cout << EvaluateBoard(board) << endl;
+		//cout << EvaluateBoard(board) << endl;
 		if (EvaluateBoard(board) != 0 || !MovesLeft(board))
 		{		
 			DisplayBoard(board);
@@ -192,17 +299,20 @@ int main()
 			if (board[row][col] == '.')
 			{
 				board[row][col] = 'o';
-				state = 1;
+				
 			}
 			else
 			{
 				cout << "Invalid Move" << endl;
 			}
+			state = 1;
 		}
 		else if (state == 1)
 		{
-			int moveValue = -999;
-			int bestValue = -1000;
+			cout << "Computer Turns" << endl;
+			::count = 0;
+			int moveValue = POS_INFINITY;
+			int bestValue = NEG_INFINITY;
 			int bestValue_row = -1;
 			int bestValue_col = -1;
 			for (int i = 0; i < 3; i++)
@@ -213,43 +323,33 @@ int main()
 					if (board[i][j] == '.')
 					{
 						board[i][j] = 'x';
-						moveValue = Minimax(board, 1, false);
+						//moveValue = Minimax(board, 1, false);
+						moveValue = MinimaxAlphaBeta(board, 1, false, NEG_INFINITY, POS_INFINITY);
 						board[i][j] = '.';
 						
-						/*cout << "Win: " << winCount << endl;
-						cout << "Lost: " << lostCount << endl;
-						cout << "Tie: " << tieCount << endl;*/
-						moveValue = moveValue + winCount - lostCount;
-						//cout << i << " " << j << " " << moveValue << endl;
+						//moveValue = moveValue + winCount - lostCount;
+						cout << "Move Value: " << moveValue << " Row: " << i << " Col: " << j << endl;
 						winCount = 0;
 						lostCount = 0;
 						tieCount = 0;
+						//Find a best value
+						if (moveValue > bestValue)
+						{
+							cout << "Move Value to Best: " << moveValue << endl;
+							bestValue = moveValue;
+							bestValue_row = i;
+							bestValue_col = j;
+						}
 					}
 					
 					
-
-					//Find a best value
-					if (moveValue > bestValue)
-					{
-						bestValue = moveValue;
-						bestValue_row = i;
-						bestValue_col = j;
-					}
 				}
 			}
+			cout << "Global Count: " << ::count << endl;
+			::count = 0;
+			cout << "Computer Move: " << bestValue_row << " " << bestValue_col << endl;
 			board[bestValue_row][bestValue_col] = 'x';
 			state = 0;
-			/*int i = 0;
-			int j = 0;
-			if (board[i][j] == '.')
-			{
-				board[i][j] = 'x';
-				int moveValue = Minimax(board, 0, false);
-				board[i][j] = '.';
-				cout << i << " " << j << " " << moveValue << endl;
-			}
-			cout << "Deepest Depth: " << deepestDepth << endl;
-			state = 0;*/
 		}
 	}
 	return 0;
